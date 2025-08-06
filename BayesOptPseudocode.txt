@@ -1,0 +1,11 @@
+Basic pseudo-code for Bayesian optimization
+Place a Gaussian process prior on f
+Observe f at n_0 points according to an initial space-filling experimental design
+Set n = n_0
+while n <= N do
+	Update the posterior probability distribution on f using all available data
+	Let x_n be a maximizer of the acquisition function over x, where the acquisition function is computed using the current posterior distribution
+	Observe y_n = f(x_n)
+	Increment n
+end while
+Return a solution
