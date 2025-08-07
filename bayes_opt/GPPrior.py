@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import kernels
+import parameterSelection
 
 def prior_distribution(X, n_samples, mean_func=None, kernel='RBF', kernel_params=None):
     X = np.array(X)
@@ -55,21 +56,42 @@ def main():
     # For Gaussian kernel
     parser.add_argument("--alpha", nargs='+', type=float, help="List of alpha values for anisotropic Gaussian kernel.")
 
+    # For hyperparameter selection
+    parser.add_argument("--param_selection", choices=["none", "mle", "map"], default="none", help="Hyperparameter selection method")
+
     args = parser.parse_args()
 
     # Define input points
-    X = np.linspace(-5, 5, 5)
+    X = np.linspace(-5, 5, args.n_points)
+    if args.kernel == 'Gaussian' or args.kernel == 'Matern':
+        X = X.reshape(-1, 1)
+    
+    y_train = np.sin(X).flatten()
 
     # Optional mean function, zero mean in this example
     mean_func = lambda x: np.zeros_like(x)
 
     kernel_params = {}
-    if args.kernel == "RBF":
-        kernel_params = {"l": args.l, "sigma_f": args.sigma_f}
-    elif args.kernel == "Gaussian":
-        kernel_params = {"alpha0": args.alpha0, "alpha": np.array(args.alpha) if args.alpha else None}
-    elif args.kernel == "Matern":
-        kernel_params = {"alpha0": args.alpha0, "nu": args.nu, "length_scale": args.length_scale}
+    if args.param_selection == "none":
+        if args.kernel == "RBF":
+            kernel_params = {"l": args.l, "sigma_f": args.sigma_f}
+        elif args.kernel == "Gaussian":
+            kernel_params = {"alpha0": args.alpha0, "alpha": np.array(args.alpha) if args.alpha else None}
+        elif args.kernel == "Matern":
+            kernel_params = {"alpha0": args.alpha0, "nu": args.nu, "length_scale": args.length_scale}
+    else:
+        opt_params = None
+        if args.param_selection == "mle":
+            opt_params = parameterSelection.maximizeLikelihoodEstimation(X, y_train, kernel_name=args.kernel)
+        elif args.param_selection == "map":
+            opt_params = parameterSelection.maximumAPosteriori(X, y_train, kernel_name=args.kernel)
+        
+        if args.kernel == "RBF":
+            kernel_params = {"l": opt_params[0], "sigma_f": opt_params[1]}
+        elif args.kernel == "Gaussian":
+            kernel_params = {"alpha0": opt_params[0], "alpha": opt_params[1:]}
+        elif args.kernel == "Matern":
+            kernel_params = {"alpha0": opt_params[0], "nu": opt_params[1], "length_scale": opt_params[2]}
 
     # Sample 3 functions from prior
     samples, X_plot = prior_distribution(X, n_samples=5, mean_func=mean_func, kernel=args.kernel, kernel_params=kernel_params)
