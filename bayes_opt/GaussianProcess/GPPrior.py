@@ -11,31 +11,9 @@ def prior_distribution(X, n_samples, mean_func=None, kernel='RBF', kernel_params
     else:
         mean = mean_func(X)
 
-    if kernel_params is None:
-        kernel_params = {}
-    
-    if kernel == 'RBF':
-        # 1D only
-        covMatrix = kernels.RBFkernel(X, X,
-                                      l=kernel_params.get('l', 1.0),
-                                      sigma_f=kernel_params.get('sigma_f', 1.0))
-    elif kernel == 'Gaussian':
-        # Must reshape for GaussianKernel
-        X = X.reshape(-1, 1)
-        covMatrix = kernels.GaussianKernel(X, X,
-                                           alpha0=kernel_params.get('alpha0', 1.0),
-                                           alpha=kernel_params.get('alpha', None))
-    elif kernel == 'Matern':
-        # Must reshape for MaternKernel
-        X = X.reshape(-1, 1)
-        covMatrix = kernels.MaternKernel(X, X,
-                                         alpha0=kernel_params.get('alpha0', 1.0),
-                                         nu=kernel_params.get('nu', 1.5),
-                                         length_scale=kernel_params.get('length_scale', 1.0))
-    else:
-        raise ValueError(f"Unsupported kernel: {kernel}")
+    covMatrix = kernels.computeCovarianceMatrix(X, X, kernel=kernel, kernel_params=kernel_params)
 
-    dist = np.random.multivariate_normal(mean, covMatrix, n_samples)
+    dist = np.random.multivariate_normal(mean, covMatrix + 1e-8 * np.eye(len(X)), n_samples)
     return dist, X.flatten()
 
 def main():
@@ -71,27 +49,16 @@ def main():
     # Optional mean function, zero mean in this example
     mean_func = lambda x: np.zeros_like(x)
 
-    kernel_params = {}
-    if args.param_selection == "none":
-        if args.kernel == "RBF":
-            kernel_params = {"l": args.l, "sigma_f": args.sigma_f}
-        elif args.kernel == "Gaussian":
-            kernel_params = {"alpha0": args.alpha0, "alpha": np.array(args.alpha) if args.alpha else None}
-        elif args.kernel == "Matern":
-            kernel_params = {"alpha0": args.alpha0, "nu": args.nu, "length_scale": args.length_scale}
-    else:
-        opt_params = None
-        if args.param_selection == "mle":
-            opt_params = parameterSelection.maximizeLikelihoodEstimation(X, y_train, kernel_name=args.kernel)
-        elif args.param_selection == "map":
-            opt_params = parameterSelection.maximumAPosteriori(X, y_train, kernel_name=args.kernel)
-        
-        if args.kernel == "RBF":
-            kernel_params = {"l": opt_params[0], "sigma_f": opt_params[1]}
-        elif args.kernel == "Gaussian":
-            kernel_params = {"alpha0": opt_params[0], "alpha": opt_params[1:]}
-        elif args.kernel == "Matern":
-            kernel_params = {"alpha0": opt_params[0], "nu": opt_params[1], "length_scale": opt_params[2]}
+    cli_params = {
+        "l": args.l,
+        "sigma_f": args.sigma_f,
+        "alpha0": args.alpha0,
+        "alpha": args.alpha,
+        "nu": args.nu,
+        "length_scale": args.length_scale,
+    }
+
+    kernel_params = parameterSelection.optimizeParameters(X, y_train, kernel=args.kernel, param_selection=args.param_selection, cli_params=cli_params)
 
     # Sample 3 functions from prior
     samples, X_plot = prior_distribution(X, n_samples=5, mean_func=mean_func, kernel=args.kernel, kernel_params=kernel_params)

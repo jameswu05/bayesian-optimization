@@ -65,3 +65,23 @@ def MaternKernel(X1, X2, alpha0=1.0, nu=1.5, length_scale=1.0):
         K = coeff * (factor ** nu) * kv(nu, factor)
 
     return K
+
+def computeCovarianceMatrix(X1, X2, kernel='RBF', kernel_params=None):
+    if kernel_params is None:
+        kernel_params = {}
+
+    if kernel == 'RBF':
+        l = kernel_params.get("l", 1.0)
+        sigma_f = kernel_params.get("sigma_f", 1.0)
+        return RBFkernel(X1, X2, l=l, sigma_f=sigma_f)
+    elif kernel == 'Gaussian':
+        alpha0 = kernel_params.get("alpha0", 1.0)
+        alpha = kernel_params.get("alpha", None)
+        return GaussianKernel(X1, X2, alpha0=alpha0, alpha=alpha)
+    elif kernel == 'Matern':
+        alpha0 = kernel_params.get("alpha0", 1.0)
+        nu = kernel_params.get("nu", 1.5)
+        length_scale = kernel_params.get("length_scale", 1.0)
+        return MaternKernel(X1, X2, alpha0=alpha0, nu=nu, length_scale=length_scale)
+    else:
+        return ValueError(f"Unsupported kernel name: {kernel}")
