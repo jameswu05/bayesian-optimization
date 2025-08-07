@@ -1,5 +1,7 @@
 import numpy as np
 import kernels
+import argparse
+import parameterSelection
 
 def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigma_y=1e-8, mean_func=None):
     X_train = np.array(X_train) # training input points, e.g [x1, x2, ..., xn]
@@ -20,34 +22,61 @@ def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigm
         X_train = X_train.reshape(-1, 1)
         X_test = X_test.reshape(-1, 1)
 
-    if kernel == 'RBF':
-        l = kernel_params.get('l', 1.0)
-        sigma_f = kernel_params.get('sigma_f', 1.0)
-        K = kernels.RBFkernel(X_train, X_train, l, sigma_f) + sigma_y**2 * np.eye(len(X_train))
-        K_s = kernels.RBFkernel(X_test, X_train, l, sigma_f)
-        K_ss = kernels.RBFkernel(X_test, X_test, l, sigma_f)
-    elif kernel == 'Gaussian':
-        alpha0 = kernel_params.get('alpha0', 1.0)
-        alpha = kernel_params.get('alpha', None)
-        K = kernels.GaussianKernel(X_train, X_train, alpha0, alpha) + sigma_y**2 * np.eye(len(X_train))
-        K_s = kernels.GaussianKernel(X_test, X_train, alpha0, alpha)
-        K_ss = kernels.GaussianKernel(X_test, X_test, alpha0, alpha)
-    elif kernel == 'Matern':
-        alpha0 = kernel_params.get('alpha0', 1.0)
-        nu = kernel_params.get('nu', 1.5)
-        length_scale = kernel_params.get('length_scale', 1.0)
-        K = kernels.MaternKernel(X_train, X_train, alpha0, nu, length_scale) + sigma_y**2 * np.eye(len(X_train))
-        K_s = kernels.MaternKernel(X_test, X_train, alpha0, nu, length_scale)
-        K_ss = kernels.MaternKernel(X_test, X_test, alpha0, nu, length_scale)
-    else:
-        raise ValueError(f"Unsupported kernel: {kernel}")
-
+    K = kernels.computeCovarianceMatrix(X_train, X_train, kernel, kernel_params) + sigma_y * np.eye(len(X_train))
+    K_s = kernels.computeCovarianceMatrix(X_test, X_train, kernel, kernel_params)
+    K_ss = kernels.computeCovarianceMatrix(X_test, X_test, kernel, kernel_params) + 1e-8 * np.eye(len(X_test))
+    
     L = np.linalg.cholesky(K)
     v = np.linalg.solve(L, y_train - mu_train)
     v_1 = np.linalg.solve(L, K_s.T)
     alpha = np.linalg.solve(L.T, v)
 
     mu_post = K_s @ alpha + mu_test
-    cov_post = K_ss - v_1.T @ v
+    cov_post = K_ss - v_1.T @ v_1
 
     return mu_post, cov_post
+
+def main():
+    parser = argparse.ArgumentParser(description="Compute GP Posterior")
+
+    parser.add_argument("--kernel", choices=["RBF", "Gaussian", "Matern"], default="RBF", help="Kernel type")
+    parser.add_argument("--n_train", type=int, default=10, help="Number of training points")
+    parser.add_argument("--n_test", type=int, default=100, help="Number of test points")
+    parser.add_argument("--sigma_y", type=float, default=1e-8, help="Observation noise variance")
+    parser.add_argument("--param_selection", choices=["none", "mle", "map", "bayes"], default="none",
+                        help="Hyperparameter selection method")
+
+    args = parser.parse_args()
+
+    # Generate training and test data
+    X_train = np.linspace(-5, 5, args.n_train)
+    y_train = np.sin(X_train) + np.random.normal(0, np.sqrt(args.sigma_y), size=args.n_train)
+    X_test = np.linspace(-5, 5, args.n_test)
+
+    # Default kernel parameters
+    kernel_params = {"l": 1.0, "sigma_f": 1.0}
+
+    # Hyperparameter selection
+    if args.param_selection != "none":
+        kernel_params = parameterSelection.optimizeParameters(X_train, y_train, args.kernel, args.param_selection)
+
+    # Posterior computation
+    mu_post, cov_post = GPPosterior(X_train, y_train, X_test, kernel=args.kernel,
+                                     kernel_params=kernel_params, sigma_y=args.sigma_y)
+
+    # Optional: plot or print
+    import matplotlib.pyplot as plt
+    samples = np.random.multivariate_normal(mu_post, cov_post, 3)
+
+    plt.figure()
+    plt.plot(X_train, y_train, "ro", label="Training data")
+    plt.plot(X_test, mu_post, "b-", label="Posterior mean")
+    for i in range(samples.shape[0]):
+        plt.plot(X_test, samples[i], "--", label=f"Sample {i + 1}")
+    plt.legend()
+    plt.title("GP Posterior Samples")
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
