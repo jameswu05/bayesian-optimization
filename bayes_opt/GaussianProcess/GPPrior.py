@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import argparse
 import kernels
 import parameterSelection
+import meanFunctions
+
 
 def prior_distribution(X, n_samples, mean_func=None, kernel='RBF', kernel_params=None):
     X = np.array(X)
@@ -37,7 +39,17 @@ def main():
     # For hyperparameter selection
     parser.add_argument("--param_selection", choices=["none", "mle", "map"], default="none", help="Hyperparameter selection method")
 
+    # For mean function selection
+    parser.add_argument("--mean_function", choices=["None", "constant", "linear"], default="None", help="Mean function type")
+    parser.add_argument("--mu", type=float, default=0.0, help="Constant offset for mean function")
+    parser.add_argument("--beta", type=str, default=None, help="Comma-separated beta coefficients")
+
     args = parser.parse_args()
+
+    if args.beta is not None:
+        args.beta = [float(b) for b in args.beta.split(",")]
+    else:
+        args.beta = []
 
     # Define input points
     X = np.linspace(-5, 5, args.n_points)

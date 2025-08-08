@@ -3,13 +3,14 @@ import kernels
 import argparse
 import parameterSelection
 import meanFunctions
+import matplotlib.pyplot as plt
 
-def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigma_y=1e-8, mean_func=None):
+def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigma_y=1e-8, mean_func="None"):
     X_train = np.array(X_train) # training input points, e.g [x1, x2, ..., xn]
     y_train = np.array(y_train) # observed function values at those points, e.g [f(x1), f(x2), ..., f(xn)]
     X_test = np.array(X_test) # points where you want to predict the function
 
-    if mean_func is None:
+    if mean_func == "None":
         mu_train = np.zeros_like(y_train)
         mu_test = np.zeros_like(X_test)
     else:
@@ -75,8 +76,6 @@ def main():
     mu_post, cov_post = GPPosterior(X_train, y_train, X_test, kernel=args.kernel,
                                      kernel_params=kernel_params, sigma_y=args.sigma_y)
 
-    # Optional: plot or print
-    import matplotlib.pyplot as plt
     samples = np.random.multivariate_normal(mu_post, cov_post, 3)
 
     plt.figure()
