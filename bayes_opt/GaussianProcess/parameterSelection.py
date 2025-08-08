@@ -49,18 +49,18 @@ def maximizeLikelihoodEstimation(X, y, kernel_name='RBF', initial_theta=None, si
     if kernel_name == 'RBF':
         if initial_theta is None:
             initial_theta = [1.0, 1.0]
-        bounds = [(1e-5, 10), (1e-5, 10)]
+        bounds = [(1e-5, 1e5), (1e-5, 1e5)] # 10
 
     elif kernel_name == 'Gaussian':
         d = X.shape[1] if len(X.shape) > 1 else 1
         if initial_theta is None:
             initial_theta = [1.0] + [1.0] * d  # alpha0 + alpha vector
-        bounds = [(1e-5, 10)] * (d + 1)
+        bounds = [(1e-5, 1e5)] * (d + 1) # 10
 
     elif kernel_name == 'Matern':
         if initial_theta is None:
             initial_theta = [1.0, 1.5, 1.0]  # alpha0, nu, length_scale
-        bounds = [(1e-5, 10), (0.5, 5), (1e-5, 10)]
+        bounds = [(1e-5, 1e5), (0.5, 5), (1e-5, 1e5)] # 10
 
     else:
         raise NotImplementedError(f"MLE not implemented for kernel {kernel_name}")
@@ -89,7 +89,7 @@ def maximumAPosteriori(X, y, kernel_name='RBF', initial_theta=None, sigma_y=1e-8
         else:
             raise NotImplementedError(f"MAP not implemented for kernel {kernel_name}")
 
-    bounds = [(1e-5, 10)] * len(initial_theta)
+    bounds = [(1e-5, 1e5)] * len(initial_theta) # 10
     if kernel_name == 'Matern':
         bounds[1] = (0.5, 5)  # nu range
 

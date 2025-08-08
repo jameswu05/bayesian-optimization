@@ -2,6 +2,7 @@ import numpy as np
 import kernels
 import argparse
 import parameterSelection
+import meanFunctions
 
 def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigma_y=1e-8, mean_func=None):
     X_train = np.array(X_train) # training input points, e.g [x1, x2, ..., xn]
@@ -45,8 +46,16 @@ def main():
     parser.add_argument("--sigma_y", type=float, default=1e-8, help="Observation noise variance")
     parser.add_argument("--param_selection", choices=["none", "mle", "map", "bayes"], default="none",
                         help="Hyperparameter selection method")
+    parser.add_argument("--mean_function", choices=["None", "constant", "linear"], default="None",
+                        help="Mean function type")
+    parser.add_argument("--mu", type=float, default=0.0, help="Constant mean offset")
+    parser.add_argument("--beta", type=str, default=1.0, help="Slope for linear mean")
 
     args = parser.parse_args()
+
+    if args.beta is not None:
+        if isinstance(args.beta, str):
+            args.beta = [float(b) for b in args.beta.split(',')]
 
     # Generate training and test data
     X_train = np.linspace(-5, 5, args.n_train)
@@ -59,6 +68,8 @@ def main():
     # Hyperparameter selection
     if args.param_selection != "none":
         kernel_params = parameterSelection.optimizeParameters(X_train, y_train, args.kernel, args.param_selection)
+
+    mean_func = meanFunctions.selectMeanFunction(args.mean_function, mu=args.mu, beta=args.beta)
 
     # Posterior computation
     mu_post, cov_post = GPPosterior(X_train, y_train, X_test, kernel=args.kernel,
