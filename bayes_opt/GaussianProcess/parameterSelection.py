@@ -34,6 +34,7 @@ def log_marginal_likelihood(theta, X, y, kernel_name, sigma_y=1e-8, prior_func=N
         return np.inf
 
     alpha_vec = np.linalg.solve(L.T, np.linalg.solve(L, y))
+    # alpha_vec = np.linalg.solve(L.T, np.linalg.solve(L, y.reshape(-1, 1)))
 
     log_likelihood = -0.5 * y.T @ alpha_vec
     log_likelihood -= np.sum(np.log(np.diag(L)))

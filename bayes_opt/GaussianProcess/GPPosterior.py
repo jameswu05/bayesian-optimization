@@ -5,17 +5,24 @@ import parameterSelection
 import meanFunctions
 import matplotlib.pyplot as plt
 
-def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigma_y=1e-8, mean_func="None"):
+def GPPosterior(X_train, y_train, X_test, kernel="RBF", kernel_params=None, sigma_y=1e-8, mean_func="None",
+                mu=0.0, beta=1.0, param_selection="none"):
+    kernel_params = {"l": 1.0, "sigma_f": 1.0}
+    if param_selection != "none":
+        kernel_params = parameterSelection.optimizeParameters(X_train, y_train, kernel, param_selection)
+
+    mean_function = meanFunctions.selectMeanFunction(mean_func, mu=mu, beta=beta)
+
     X_train = np.array(X_train) # training input points, e.g [x1, x2, ..., xn]
     y_train = np.array(y_train) # observed function values at those points, e.g [f(x1), f(x2), ..., f(xn)]
     X_test = np.array(X_test) # points where you want to predict the function
 
-    if mean_func == "None":
+    if mean_function == "None":
         mu_train = np.zeros_like(y_train)
         mu_test = np.zeros_like(X_test)
     else:
-        mu_train = mean_func(X_train)
-        mu_test = mean_func(X_test)
+        mu_train = mean_function(X_train)
+        mu_test = mean_function(X_test)
 
     if kernel_params is None:
         kernel_params = {}
@@ -67,14 +74,16 @@ def main():
     kernel_params = {"l": 1.0, "sigma_f": 1.0}
 
     # Hyperparameter selection
-    if args.param_selection != "none":
-        kernel_params = parameterSelection.optimizeParameters(X_train, y_train, args.kernel, args.param_selection)
+    # if args.param_selection != "none":
+        # kernel_params = parameterSelection.optimizeParameters(X_train, y_train, args.kernel, args.param_selection)
 
-    mean_func = meanFunctions.selectMeanFunction(args.mean_function, mu=args.mu, beta=args.beta)
+    # mean_func = meanFunctions.selectMeanFunction(args.mean_function, mu=args.mu, beta=args.beta)
 
     # Posterior computation
     mu_post, cov_post = GPPosterior(X_train, y_train, X_test, kernel=args.kernel,
-                                     kernel_params=kernel_params, sigma_y=args.sigma_y)
+                                     kernel_params=kernel_params, sigma_y=args.sigma_y,
+                                     mean_func=args.mean_function, mu=args.mu, beta=args.beta,
+                                     param_selection=args.param_selection)
 
     samples = np.random.multivariate_normal(mu_post, cov_post, 3)
 

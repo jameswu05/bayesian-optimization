@@ -8,5 +8,5 @@ def expectedImprovement(X, GPPosteriorMean, GPPosteriorSTD, f_best):
     delta = f_best - mu
     Z = delta / sigma
     e_i = delta * norm.cdf(Z) + sigma * norm.pdf(Z)
-    e_i = max(e_i, 0.0)
-    return max(e_i)
+    e_i = np.maximum(e_i, 0.0)
+    return e_i
